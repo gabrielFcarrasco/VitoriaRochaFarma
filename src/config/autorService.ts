@@ -14,6 +14,7 @@ export interface AutorInfo {
   logoUrl?: string;
   chatbotName?: string;
   chatbotPrompt?: string;
+  chatbotAvatar?: string;
 }
 
 const AUTOR_DOC_ID = 'sobre_a_autora';
