@@ -10,15 +10,23 @@ interface AutorInfoHome extends AutorInfo, Partial<typeof TEXTOS_PADRAO> {}
 export function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [autorData, setAutorData] = useState<AutorInfoHome | null>(null);
+  const [produtosCatalogo, setProdutosCatalogo] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Busca os dados do BD
+  // 1. Busca os dados do autor e produtos do BD
   useEffect(() => {
     const buscarDados = async () => {
       try {
         const dados = await autorService.getAutorInfo();
         if (dados) {
           setAutorData(dados);
+        }
+
+        // Tenta buscar os produtos reais do catálogo cadastrados no admin
+        // (Caso a função exista no seu serviço, se não, usa a lista vazia para ativar o modo fictício)
+        if (typeof (autorService as any).getProdutos === 'function') {
+          const prods = await (autorService as any).getProdutos();
+          setProdutosCatalogo(prods || []);
         }
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
@@ -55,7 +63,7 @@ export function Home() {
   const val = (key: keyof typeof TEXTOS_PADRAO) => 
     autorData?.[key] !== undefined && autorData?.[key] !== '' ? autorData[key] : (TEXTOS_PADRAO as any)[key];
 
-  // 🌟 FUNÇÃO MÁGICA: Transforma **qualquer trecho entre asteriscos** em texto destacado com a cor secundária (sem traços ou linhas)
+  // 🌟 FUNÇÃO MÁGICA: Transforma **qualquer trecho entre asteriscos** em texto destacado com a cor secundária
   const renderizarTextoComDestaque = (texto: string) => {
     if (!texto) return null;
     const partes = texto.split(/(\*\*.*?\*\*)/g);
@@ -109,6 +117,29 @@ export function Home() {
     fontFamily: val('fontFamily') as string
   } as React.CSSProperties;
 
+  // Produtos fictícios padrão caso o admin ainda não tenha cadastrado nenhum produto real
+  const produtosExemplo = [
+    {
+      id: 'exemplo-1',
+      emoji: '📘',
+      titulo: 'E-book Psicofármacos na Prática',
+      descricao: 'Guia completo de antidepressivos, estabilizadores, antipsicóticos e manejo em saúde mental.',
+      precoOriginal: 'R$ 67,90',
+      precoAtual: 'R$ 47,90',
+      destaque: true
+    },
+    {
+      id: 'exemplo-2',
+      emoji: '🎯',
+      titulo: 'Flashcards de Saúde Mental',
+      descricao: 'Estudo ativo comprovado pela neurociência para fixar doses, reações e mecanismos de ação.',
+      precoAtual: 'R$ 29,90',
+      destaque: false
+    }
+  ];
+
+  const listaParaExibir = produtosCatalogo.length > 0 ? produtosCatalogo : produtosExemplo;
+
   return (
     <div style={themeStyles}>
       
@@ -160,24 +191,6 @@ export function Home() {
       }}>
         <div style={{ position: 'absolute', top: '-50%', left: '-10%', width: '400px', height: '400px', background: 'radial-gradient(circle, var(--cor-lilas) 0%, transparent 70%)', opacity: 0.3, filter: 'blur(40px)' }}></div>
         
-        <svg className="floating-icon icon-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10.5 20.5a7 7 0 1 1-9-9l9.5-9.5a7 7 0 0 1 9 9Z"></path>
-          <path d="m14 3.5 6.5 6.5"></path>
-        </svg>
-        <svg className="floating-icon icon-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-        </svg>
-        <svg className="floating-icon icon-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0"></path>
-          <path d="M12 3v18"></path>
-          <path d="M3 12h18"></path>
-        </svg>
-        <svg className="floating-icon icon-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="2" x2="12" y2="22"></line>
-        </svg>
-
         <span className="reveal-on-scroll delay-1" style={{ position: 'relative', zIndex: 2, backgroundColor: 'var(--cor-rosa)', padding: '8px 20px', borderRadius: '30px', fontSize: 'clamp(0.75rem, 2vw, 0.85rem)', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase', display: 'inline-block', marginBottom: '1rem' }}>
           {renderizarTextoComDestaque(val('heroExtraText') as string)}
         </span>
@@ -198,7 +211,7 @@ export function Home() {
         </div>
       </section>
 
-      {/* 3. BENEFÍCIOS (O MÉTODO) - Ocultável */}
+      {/* 3. BENEFÍCIOS (O MÉTODO) */}
       {!autorData?.esconderBeneficios && (
         <section id="beneficios" style={{ backgroundColor: val('beneficiosBgColor') as string, padding: 'clamp(4rem, 8vw, 6rem) clamp(1.5rem, 5vw, 5%)', textAlign: 'center' }}>
           <h2 className="reveal-on-scroll" style={{ color: 'var(--cor-roxo-escuro)', fontSize: 'clamp(2rem, 5vw, 2.4rem)', marginBottom: '1rem', fontWeight: '900' }}>
@@ -209,45 +222,28 @@ export function Home() {
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
-            
-            {/* CARD 1 */}
             <div className="card-hover reveal-on-scroll delay-1" style={{ backgroundColor: 'var(--cor-branco)', padding: '2.5rem 2rem', borderRadius: '16px', borderTop: '5px solid var(--cor-rosa)', boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'left' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center' }}>{val('beneficiosEmoji1') || '🧠'}</div>
-              <h3 style={{ fontSize: '1.4rem', marginBottom: '1rem', color: 'var(--cor-roxo-escuro)', fontWeight: '800', textAlign: 'center' }}>
-                {renderizarTextoComDestaque(val('beneficiosCardTitle1') as string)}
-              </h3>
-              <p style={{ color: '#666', lineHeight: '1.6', fontSize: '0.95rem' }}>
-                {renderizarTextoComDestaque(val('beneficiosCardDesc1') as string)}
-              </p>
+              <h3 style={{ fontSize: '1.4rem', marginBottom: '1rem', color: 'var(--cor-roxo-escuro)', fontWeight: '800', textAlign: 'center' }}>{renderizarTextoComDestaque(val('beneficiosCardTitle1') as string)}</h3>
+              <p style={{ color: '#666', lineHeight: '1.6', fontSize: '0.95rem' }}>{renderizarTextoComDestaque(val('beneficiosCardDesc1') as string)}</p>
             </div>
             
-            {/* CARD 2 */}
             <div className="card-hover reveal-on-scroll delay-2" style={{ backgroundColor: 'var(--cor-branco)', padding: '2.5rem 2rem', borderRadius: '16px', borderTop: '5px solid var(--cor-lilas)', boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'left' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center' }}>{val('beneficiosEmoji2') || '⚖️'}</div>
-              <h3 style={{ fontSize: '1.4rem', marginBottom: '1rem', color: 'var(--cor-roxo-escuro)', fontWeight: '800', textAlign: 'center' }}>
-                {renderizarTextoComDestaque(val('beneficiosCardTitle2') as string)}
-              </h3>
-              <p style={{ color: '#666', lineHeight: '1.6', fontSize: '0.95rem' }}>
-                {renderizarTextoComDestaque(val('beneficiosCardDesc2') as string)}
-              </p>
+              <h3 style={{ fontSize: '1.4rem', marginBottom: '1rem', color: 'var(--cor-roxo-escuro)', fontWeight: '800', textAlign: 'center' }}>{renderizarTextoComDestaque(val('beneficiosCardTitle2') as string)}</h3>
+              <p style={{ color: '#666', lineHeight: '1.6', fontSize: '0.95rem' }}>{renderizarTextoComDestaque(val('beneficiosCardDesc2') as string)}</p>
             </div>
 
-            {/* CARD 3 */}
             <div className="card-hover reveal-on-scroll delay-3" style={{ backgroundColor: 'var(--cor-branco)', padding: '2.5rem 2rem', borderRadius: '16px', borderTop: '5px solid var(--cor-roxo-escuro)', boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'left' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center' }}>{val('beneficiosEmoji3') || '📱'}</div>
-              <h3 style={{ fontSize: '1.4rem', marginBottom: '1rem', color: 'var(--cor-roxo-escuro)', fontWeight: '800', textAlign: 'center' }}>
-                {renderizarTextoComDestaque(val('beneficiosCardTitle3') as string)}
-              </h3>
-              <p style={{ color: '#666', lineHeight: '1.6', fontSize: '0.95rem' }}>
-                {renderizarTextoComDestaque(val('beneficiosCardDesc3') as string)}
-              </p>
+              <h3 style={{ fontSize: '1.4rem', marginBottom: '1rem', color: 'var(--cor-roxo-escuro)', fontWeight: '800', textAlign: 'center' }}>{renderizarTextoComDestaque(val('beneficiosCardTitle3') as string)}</h3>
+              <p style={{ color: '#666', lineHeight: '1.6', fontSize: '0.95rem' }}>{renderizarTextoComDestaque(val('beneficiosCardDesc3') as string)}</p>
             </div>
-
           </div>
         </section>
       )}
 
-      {/* 🌟 BLOCOS EXTRAS CRIADOS NO PAINEL */}
+      {/* BLOCOS EXTRAS */}
       {((autorData?.blocosExtras as Array<any>) || []).map((bloco) => (
         <section key={bloco.id} style={{ padding: 'clamp(4rem, 8vw, 6rem) clamp(1.5rem, 5vw, 5%)', backgroundColor: 'var(--cor-branco)', textAlign: 'center', borderTop: '1px solid #edf2f7' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{bloco.emoji}</div>
@@ -260,7 +256,7 @@ export function Home() {
         </section>
       ))}
 
-      {/* 3.5 PARALLAX (PÚBLICO) - Ocultável */}
+      {/* 3.5 PÚBLICO ALVO */}
       {!autorData?.esconderPublico && (
         <section id="publico" className="parallax-bg" style={{ backgroundColor: val('publicoBgColor') as string, padding: 'clamp(4rem, 8vw, 6rem) clamp(1.5rem, 5vw, 5%)', borderTop: '1px solid #edf2f7', borderBottom: '1px solid #edf2f7', position: 'relative' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(252, 250, 252, 0.92)' }}></div>
@@ -293,7 +289,7 @@ export function Home() {
         </section>
       )}
 
-      {/* 4. ISCA DIGITAL - Ocultável */}
+      {/* 4. ISCA DIGITAL */}
       {!autorData?.esconderIsca && (
         <section id="gratuitos" style={{ padding: 'clamp(4rem, 8vw, 6rem) clamp(1.5rem, 5vw, 5%)', backgroundColor: val('iscaBgColor') as string, color: 'var(--cor-branco)', textAlign: 'center' }}>
           <h2 className="reveal-on-scroll" style={{ fontSize: 'clamp(2rem, 5vw, 2.4rem)', marginBottom: '1rem', fontWeight: '900' }}>
@@ -322,7 +318,7 @@ export function Home() {
         </section>
       )}
 
-      {/* 5. VITRINE PREMIUM - Ocultável */}
+      {/* 5. VITRINE PREMIUM (CATÁLOGO INTELIGENTE: Puxa reais ou exibe exemplo) */}
       {!autorData?.esconderCatalogo && (
         <section id="premium" style={{ padding: 'clamp(4rem, 8vw, 7rem) clamp(1.5rem, 5vw, 5%)', textAlign: 'center', backgroundColor: val('catalogoBgColor') as string }}>
           <h2 className="reveal-on-scroll" style={{ color: 'var(--cor-roxo-escuro)', fontSize: 'clamp(2rem, 6vw, 2.6rem)', marginBottom: '0.5rem', fontWeight: '900' }}>
@@ -333,38 +329,32 @@ export function Home() {
           </p>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 340px))', gap: '2rem', justifyContent: 'center' }}>
-            <div className="card-hover reveal-on-scroll delay-1" style={{ backgroundColor: 'var(--cor-branco)', padding: '1.5rem', borderRadius: '20px', width: '100%', boxShadow: '0 15px 35px rgba(0,0,0,0.06)', position: 'relative', textAlign: 'left', border: '1px solid #edf2f7', display: 'flex', flexDirection: 'column' }}>
-              <span style={{ position: 'absolute', top: '-12px', right: '20px', backgroundColor: 'var(--cor-rosa)', color: 'var(--cor-branco)', padding: '6px 16px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '900', boxShadow: '0 4px 10px rgba(200,93,161,0.3)' }}>
-                🔥 DESTAQUE
-              </span>
-              <div style={{ height: '200px', background: 'linear-gradient(135deg, var(--cor-lilas), var(--cor-roxo-escuro))', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.05\' fill-rule=\'evenodd\'%3E%3Ccircle cx=\'3\' cy=\'3\' r=\'3\'/%3E%3Ccircle cx=\'13\' cy=\'13\' r=\'3\'/%3E%3C/g%3E%3C/svg%3E")' }}></div>
-                <span style={{ fontSize: '4rem', position: 'relative', zIndex: 1, filter: 'drop-shadow(0px 4px 10px rgba(0,0,0,0.2))' }}>📘</span>
-              </div>
-              <h3 style={{ color: 'var(--cor-roxo-escuro)', fontSize: '1.25rem', marginBottom: '0.5rem', fontWeight: '800' }}>E-book Psicofármacos na Prática</h3>
-              <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1.5rem', flex: 1, lineHeight: '1.5' }}>Guia completo de antidepressivos, estabilizadores, antipsicóticos e manejo em saúde mental.</p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
-                <span style={{ fontSize: '0.95rem', color: '#a0aec0', textDecoration: 'line-through', fontWeight: 'bold' }}>R$ 67,90</span>
-                <span style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--cor-rosa)' }}>R$ 47,90</span>
-              </div>
-              <button className="btn-hover" style={{ width: '100%', padding: '16px', backgroundColor: 'var(--cor-roxo-escuro)', color: 'var(--cor-branco)', border: 'none', borderRadius: '14px', fontWeight: '800', fontSize: '1rem', cursor: 'pointer', textTransform: 'uppercase' }}>
-                Comprar Material
-              </button>
-            </div>
+            {listaParaExibir.map((prod, index) => (
+              <div key={prod.id || index} className={`card-hover reveal-on-scroll delay-${index + 1}`} style={{ backgroundColor: 'var(--cor-branco)', padding: '1.5rem', borderRadius: '20px', width: '100%', boxShadow: '0 15px 35px rgba(0,0,0,0.06)', position: 'relative', textAlign: 'left', border: '1px solid #edf2f7', display: 'flex', flexDirection: 'column' }}>
+                {prod.destaque && (
+                  <span style={{ position: 'absolute', top: '-12px', right: '20px', backgroundColor: 'var(--cor-rosa)', color: 'var(--cor-branco)', padding: '6px 16px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '900', boxShadow: '0 4px 10px rgba(200,93,161,0.3)', zIndex: 2 }}>
+                    🔥 DESTAQUE
+                  </span>
+                )}
+                
+                <div style={{ height: '200px', background: 'linear-gradient(135deg, var(--cor-lilas), var(--cor-roxo-escuro))', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                  <span style={{ fontSize: '4rem', position: 'relative', zIndex: 1, filter: 'drop-shadow(0px 4px 10px rgba(0,0,0,0.2))' }}>{prod.emoji || '📘'}</span>
+                </div>
 
-            <div className="card-hover reveal-on-scroll delay-2" style={{ backgroundColor: 'var(--cor-branco)', padding: '1.5rem', borderRadius: '20px', width: '100%', boxShadow: '0 15px 35px rgba(0,0,0,0.06)', textAlign: 'left', border: '1px solid #edf2f7', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: '200px', background: 'linear-gradient(135deg, #fdfbfd, #f4eef7)', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #edf2f7' }}>
-                <span style={{ fontSize: '4rem', filter: 'drop-shadow(0px 4px 10px rgba(0,0,0,0.05))' }}>🎯</span>
+                <h3 style={{ color: 'var(--cor-roxo-escuro)', fontSize: '1.25rem', marginBottom: '0.5rem', fontWeight: '800' }}>{prod.titulo}</h3>
+                <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1.5rem', flex: 1, lineHeight: '1.5' }}>{prod.descricao}</p>
+                
+                <div style={{ display: 'flex', justifyContent: prod.precoOriginal ? 'space-between' : 'flex-end', alignItems: 'center', marginBottom: '1.5rem', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
+                  {prod.precoOriginal && <span style={{ fontSize: '0.95rem', color: '#a0aec0', textDecoration: 'line-through', fontWeight: 'bold' }}>{prod.precoOriginal}</span>}
+                  <span style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--cor-rosa)' }}>{prod.precoAtual || prod.preco || 'R$ 47,90'}</span>
+                </div>
+
+                {/* Botão que direciona para a página de checkout levando o ID real ou fictício */}
+                <Link to={`/checkout?produto=${prod.id}`} className="btn-hover" style={{ width: '100%', padding: '16px', backgroundColor: 'var(--cor-roxo-escuro)', color: 'var(--cor-branco)', border: 'none', borderRadius: '14px', fontWeight: '800', fontSize: '1rem', cursor: 'pointer', textTransform: 'uppercase', textAlign: 'center', textDecoration: 'none', display: 'block', boxSizing: 'border-box' }}>
+                  Comprar Material
+                </Link>
               </div>
-              <h3 style={{ color: 'var(--cor-roxo-escuro)', fontSize: '1.25rem', marginBottom: '0.5rem', fontWeight: '800' }}>Flashcards de Saúde Mental</h3>
-              <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1.5rem', flex: 1, lineHeight: '1.5' }}>Estudo ativo comprovado pela neurociência para fixar doses, reações e mecanismos de ação.</p>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1.5rem', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
-                <span style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--cor-rosa)' }}>R$ 29,90</span>
-              </div>
-              <button className="btn-hover" style={{ width: '100%', padding: '16px', backgroundColor: 'var(--cor-roxo-escuro)', color: 'var(--cor-branco)', border: 'none', borderRadius: '14px', fontWeight: '800', fontSize: '1rem', cursor: 'pointer', textTransform: 'uppercase' }}>
-                Comprar Material
-              </button>
-            </div>
+            ))}
           </div>
         </section>
       )}
